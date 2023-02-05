@@ -21,4 +21,10 @@ The AR code line has been detected to not be within any of the text/data section
 
 Make sure all lines point to and target correct addresses/values, are correctly aligned and don't contain any extra spaces.
 
+# To-Do
+- A GUI version
+- Implement other code types as documented in WiiRD
+- Add more Gekko instructions
+- Code cleanup (might be messy/hacky)
+
 
