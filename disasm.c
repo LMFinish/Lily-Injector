@@ -161,6 +161,10 @@ if (OP >= 24 && OP <= 29) {
     else printf("%s r%d, r%d, 0x%X\n", Bitwise_6[BT_ID], B11_5, B6_5, B16_16);
     return;
 }
+	
+if (Instruction == 0x4C000064) { printf("rfi\n");
+    return;
+}
 
 // literally all the 0x7C-category, I guess
 if (OP == 31) {
@@ -177,12 +181,12 @@ if (OP == 31) {
 
     case 444:
         if (B6_5 == B16_5) {
-        printf("mr%s%d, r%d\n", B31 == 1? ". r" : " r", B11_5, B6_5, B16_5);
-        } else printf("or%s%d, r%d, r%d\n", B31 == 1? ". r" : " r", B11_5, B6_5);
+        printf("mr%s%d, r%d\n", B31 == 1? ". r" : " r", B11_5, B6_5);
+        } else printf("or%s%d, r%d, r%d\n", B31 == 1? ". r" : " r", B11_5, B6_5, B16_5);
         return;
 
     case 412:
-        printf("orc%s%d, r%d, r%d\n", B31 == 1? ". r" : " r", B11_5, B6_5);
+        printf("orc%s%d, r%d, r%d\n", B31 == 1? ". r" : " r", B11_5, B6_5, B16_5);
         return;
 
     case 0:
