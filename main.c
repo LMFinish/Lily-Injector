@@ -20,13 +20,13 @@ int main(int argc, char *argv[])
        v0.4: Can now run in simulation mode
        v0.5: Can now decompile 38 PowerPC instructions
        v0.6: Can now inject into any text section
-       v0.7: PPC decomp rewrite with support for about 60 instructions/mnemonics; can now inject into any data section */
+       v0.7: PPC decomp rewrite with support for about 60 instructions/mnemonics; can now inject into any data section
+       v1.0: PPC decomp now supports well over 150 instructions, code types 1/2 now supported */
 
     printf("\n");
-    printf("Lily Injector v0.7 Beta - WIP GameCube AR Code Tool & Gekko Disassembler\n");
+    printf("Lily Injector v1.0 - WIP GameCube AR Code Tool & Gekko Disassembler by LMFinish\n");
     FILE *dolfile;
     FILE *codefile;
-    FILE *log;
     char dolname[30];
     printf("Specify DOL for patching: ");
     scanf("%29s", dolname);
@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
     dolfile = fopen(dolname, "rb+");
 
     if (dolfile == NULL) {
-        printf("Specified DOL was not found! Aborting.");
+        printf("Specified DOL was not found! Aborting.\n");
         return 0;
       } else printf("Opened %s; ", dolname);
 
@@ -71,6 +71,7 @@ int main(int argc, char *argv[])
     uint32_t Inj_Addr = (uint32_t)strtoul(Code_Half1, NULL, 16);
     // Fetch the instruction string and convert it, or stop if reached hard end
     fseek(codefile, (9 + (Instruction_Shift * Processed_Lines)), SEEK_SET);
+
     if (fgets(Code_Half1, 9, codefile) == NULL) {
         printf("Cannot read instruction/value from line %d. Halting job\n", Processed_Lines + 1);
         break;
@@ -81,7 +82,7 @@ int main(int argc, char *argv[])
     uint8_t Code_Type = Inj_Addr >> 24;
     // Make the injection address a proper memory location
     Inj_Addr = ((Inj_Addr << 8) >> 8) + 0x80000000;
-    printf("L%02d: ", Processed_Lines +1);
+    printf("L%03d: ", Processed_Lines +1);
 
     // Set these flags up for sect scanning
     int Analyzed_Sections = 0,
@@ -115,15 +116,58 @@ int main(int argc, char *argv[])
             Inj_Addr_Physical = (Inj_Addr - CurSect_Virtual) + Fix_Big_Endian(Dol.Text_Physical[Analyzed_Sections]);
             } else Inj_Addr_Physical = (Inj_Addr - CurSect_Virtual) + Fix_Big_Endian(Dol.Data_Physical[Analyzed_Sections]);
 
-            printf("Writing %X at DOL 0x%X (%X) from code type %d: ", Instruction, Inj_Addr_Physical, Inj_Addr, Code_Type);
-            // Now disassemble and print instruction
-            DisASM(Instruction, Inj_Addr);
-            // The message above will display fixed instruction properly but need to "unfix" for injecting:
-            Instruction = Fix_Big_Endian(Instruction);
-            // Write instruction
-            fseek(dolfile, Inj_Addr_Physical, SEEK_SET);
-            if (Simulation_Mode == 0) { fwrite(&Instruction, sizeof(Instruction), 1, dolfile); }
+            uint32_t Spot = (Inj_Addr_Physical << 28) >> 28;
+
+            if (Code_Type == 4 && (Spot << 30) >> 30 >= 1) {
+            printf("Unaligned 32-bit store attempt, skipping.\n");
             break;
+            }
+
+            if ((Code_Type == 1 && Instruction > 0xFF) || (Code_Type == 2 && Instruction > 0xFFFF)) {
+            printf("Out of unsigned %d-bit integer range, skipping.\n", Code_Type == 1? 8 : 16);
+            break;
+            }
+            if (Code_Type == 2) {
+                struct Dol_File Access;
+
+                // The reading bloat in this mightn't be likable, but it'll do for now
+                if (Spot == 0 || Spot == 4 || Spot == 8 || Spot == 0xC) {
+                fseek(dolfile, Inj_Addr_Physical, SEEK_SET);
+                fread(&Access, sizeof(Access), 1, dolfile);
+                Instruction = (Fix_Big_Endian(Access.Text_Physical[0]) << 16) >> 16 | Instruction << 16;
+
+                } else if (Spot == 2 || Spot == 6 || Spot == 0xA || Spot == 0xE) {
+                Inj_Addr_Physical = Inj_Addr_Physical - 2;
+                fseek(dolfile, Inj_Addr_Physical, SEEK_SET);
+                fread(&Access, sizeof(Access), 1, dolfile);
+                Instruction = (Fix_Big_Endian(Access.Text_Physical[0]) >> 16) << 16 | Instruction;
+                } else { printf("Unaligned 16-bit store attempt, skipping.\n");
+                break;
+                }
+            }
+
+            printf("Writing %08X, code type %d at DOL 0x%06X | %X", Instruction, Code_Type, Inj_Addr_Physical, Inj_Addr);
+            if (Code_Type == 4) { printf(": ");
+            DisASM(Instruction, Inj_Addr);
+            } else printf("\n");
+            // Now disassemble and print instruction
+
+            if (Simulation_Mode == 0) {
+
+            // The message above will display fixed instruction properly but need to "unfix" for injecting, unless if code type 1
+            if (Code_Type != 1) {
+            Instruction = Fix_Big_Endian(Instruction);
+            }
+            fseek(dolfile, Inj_Addr_Physical, SEEK_SET);
+            fwrite(&Instruction, Code_Type == 1? 1 : sizeof(Instruction), 1, dolfile);
+
+            if(ferror(dolfile)) {
+                printf("Cannot apply changes to DOL file. Aborting\n");
+                fclose(dolfile);
+                fclose(codefile);
+                return 0;
+            }
+        }   break;
     }
 
     if (Analyzed_Sections++ == 7 && Use_Data == 0) {
@@ -136,7 +180,6 @@ int main(int argc, char *argv[])
 }
     printf("Job complete!\n");
     fclose(dolfile);
-    fclose(log);
     fclose(codefile);
     return 0;
 }
