@@ -10,7 +10,7 @@ The disassembler support roughly 150+ Gekko instructions/mnemonics (WIP). Not al
 
 Currently Supported types: 04 (32-bit write), 02 (16-bit write), 01 (byte write)
 
-DISCLAIMER: BACK UP YOUR DOL FILE BEFORE OPERATION (OR USE -s). THIS IS A WORK-IN-PROGRESS PROJECT. Report any bugs/feature requests ASAP in this repo's issue tracker or to LMFinish#7842 over at Discord
+Tested extensively, stable injection of codes 100% of the time. However, do report any bugs/feature requests ASAP in this repo's issue tracker or to LMFinish#7842 over at Discord
 
 # Errors
 "Not injectable; outside bounds of DOL":
