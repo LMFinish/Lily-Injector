@@ -21,54 +21,89 @@ int main(int argc, char *argv[])
        v0.5: Can now decompile 38 PowerPC instructions
        v0.6: Can now inject into any text section
        v0.7: PPC decomp rewrite with support for about 60 instructions/mnemonics; can now inject into any data section
-       v1.0: PPC decomp now supports well over 150 instructions, code types 1/2 now supported */
+       v1.0: PPC decomp now supports well over 150 instructions, code types 1/2 now supported
+       v1.1: Can now disassemble raw opcodes from text file, first Paired Singles instructions */
 
     printf("\n");
-    printf("Lily Injector v1.0 - WIP GameCube AR Code Tool & Gekko Disassembler by LMFinish\n");
+    printf("Lily Injector v1.1 - WIP GameCube AR Code Tool & Gekko Disassembler by LMFinish\n");
     FILE *dolfile;
     FILE *codefile;
-    char dolname[30];
-    printf("Specify DOL for patching: ");
-    scanf("%29s", dolname);
-
     codefile = fopen("codes.txt", "r");
-    dolfile = fopen(dolname, "rb+");
-
-    if (dolfile == NULL) {
-        printf("Specified DOL was not found! Aborting.\n");
-        return 0;
-      } else printf("Opened %s; ", dolname);
-
     if (codefile == NULL) {
         printf("codes.txt not found! Aborting.\n");
         return 0;
     } else printf("Opened codes.txt\n");
 
-    printf("\n");
-    struct Dol_File Dol;
-    fread(&Dol, sizeof(Dol), 1, dolfile);
-
-    // AR code halves are usually 8 characters
-    char Code_Half1[9];
+    int tool_arg;
     int Processed_Lines = 0,
     Simulation_Mode = 0;
-    int Instruction_Shift = 19;
-    int tool_arg;
+
+    uint32_t Instruction, Inj_Addr, Entry_Point;
+    char dolname[30];
+    // AR code halves are usually 8 characters
+    char Code_Half1[9];
+    char Raw_Bytecode[9];
 
     // Scan any arguments
-    while ((tool_arg = getopt(argc, argv, "s")) != -1) {
+    while ((tool_arg = getopt(argc, argv, "sd")) != -1) {
         switch(tool_arg) {
+
+            case 'd':
+            printf("Gekko Bytecode Disassembly Mode\n");
+            printf("Entry Point: ");
+            scanf("%x", &Entry_Point);
+            int Instruction_Read = 0;
+            if (Entry_Point > 0) { Processed_Lines = 1;
+            }
+
+            while (fgets(Raw_Bytecode, 9, codefile) != NULL) {
+
+                if (Entry_Point >= 0x100000000) {
+                    printf("Outside 32-bit range, halting job.\n");
+                    break;
+                }
+
+                // Mind not the var reusage
+                if (Processed_Lines == 1) { printf("%02X:\t", Entry_Point); }
+                Instruction_Read++;
+                fseek(codefile, 8*Instruction_Read, SEEK_SET);
+                Instruction = (uint32_t)strtoul(Raw_Bytecode, NULL, 16);
+
+                if (Instruction < 0x8000000) { printf("Possible whitespace, junk data, or non-bytecode: ");
+                }   DisASM(Instruction, Entry_Point);
+                    Entry_Point = Entry_Point + 4;
+
+            } printf("Job complete!\n");
+              return 0;
+
             case 's':
             printf("Running in simulation mode (no injection)\n");
             Simulation_Mode = 1;
             break;
+
         }
     }
+    printf("Specify DOL for patching: ");
+    scanf("%29s", dolname);
+
+    dolfile = fopen(dolname, "rb+");
+
+    if (dolfile == NULL) {
+        printf("Specified DOL was not found! Aborting.\n");
+        return 0;
+      } else printf("Opened %s ", dolname);
+
+    printf("\n");
+    struct Dol_File Dol;
+    fread(&Dol, sizeof(Dol), 1, dolfile);
+
+    int Instruction_Shift = 19;
+
     // Begin line reading procedure, read the injection address
     while (fgets(Code_Half1, 9, codefile) != NULL) {
 
     // Perform conversion from string in txt to injection address
-    uint32_t Inj_Addr = (uint32_t)strtoul(Code_Half1, NULL, 16);
+    Inj_Addr = (uint32_t)strtoul(Code_Half1, NULL, 16);
     // Fetch the instruction string and convert it, or stop if reached hard end
     fseek(codefile, (9 + (Instruction_Shift * Processed_Lines)), SEEK_SET);
 
@@ -76,7 +111,7 @@ int main(int argc, char *argv[])
         printf("Cannot read instruction/value from line %d. Halting job\n", Processed_Lines + 1);
         break;
     }
-    uint32_t Instruction = (uint32_t)strtoul(Code_Half1, NULL, 16);
+    Instruction = (uint32_t)strtoul(Code_Half1, NULL, 16);
 
     // Shift 3 bytes to isolate the code type
     uint8_t Code_Type = Inj_Addr >> 24;
