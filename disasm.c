@@ -56,16 +56,23 @@ void Parse_MSPR(char Direction, uint32_t Split, uint32_t rD)
     printf("m%cctr\t r%d", Direction, rD);
     break;
 
-    case 18:
-    printf("m%cdsisr\t r%d", Direction, rD);
-    break;
-
     case 19:
     printf("m%cdar\t r%d", Direction, rD);
     break;
 
     default:
-    printf("m%cspr\t r%d, %d", Direction, rD, Split);
+    printf("m%cspr\t r%d, ", Direction, rD);
+
+    if (Split >= 1020 && Split <= 1022) {
+        printf("THRM%d", Split - 1020);
+
+    } else if (Split >= 912 && Split <= 919) {
+        printf("GQR%d", Split - 912);
+
+    } else if (Split >= 272 && Split <= 275) {
+        printf("SPRG%d", Split - 272);
+
+    } else printf("%d", Split);
     break;
     }
 
@@ -79,6 +86,16 @@ void Print_FCat1(char* FCat1, uint32_t frD, uint32_t frA, uint32_t frB, uint32_t
         printf("%s%s%d, f%d, f%d\n", FCat1, Rc == 1? ".\t f" : "\t f", frD, frA, frB);
     } else printf("(unk)\n");
     return;
+}
+void Print_PS0(uint32_t B6_5, uint32_t B11_5, uint8_t W, uint32_t I, uint32_t D, char* Inst)
+{
+     printf("ps%s\t f%d%s%X (r%d), %d, %d\n", Inst, B6_5, D >= 0x800? ", -0x" : ", 0x", D >= 0x800? 0x1000 - D : D, B11_5, W, I);
+     return;
+}
+void Print_PS1(char* Inst, uint32_t D, uint32_t A, uint8_t B, uint32_t C, uint32_t Rc)
+{
+     printf("ps_%s%c     f%d, f%d, f%d, f%d\n", Inst, Rc == 1? '.' : '\0', D, A, C, B);
+     return;
 }
 
 void DisASM(uint32_t Instruction, uint32_t Inj_Addr)
@@ -185,11 +202,17 @@ d field 1 (signed two's complement integer that is sign-extended to 32 bits) */
 int32_t B16_16 = (Instruction << 16) >> 16,
 LIS_B16_16 = B16_16;
 
+// Paired singles field
+uint8_t W = (Instruction << 16) >> 31;
+
 // This field: I field 1 (specify GQR control register used by PS load/store)
-uint8_t B17_3 = (Instruction << 18) >> 29;
+uint8_t B17_3 = (Instruction << 17) >> 29;
 
 // Extended opcode field 1
-uint32_t XO1 = (Instruction << 21) >> 22;
+uint32_t XO1 = (Instruction << 21) >> 22,
+
+// Paired singles offset
+D = (Instruction << 20) >> 20;
 
 // This field: frC (specify FPR as source) and MB (rotate instruction mask)
 uint8_t B21_5 = (Instruction << 21) >> 27,
@@ -231,6 +254,117 @@ if (OP == 4) {
     Print7C_DCache(DCache_Insts, 6, B11_5, B16_5, B6_5, B31);
     return;
     }
+    switch(B26_5) {
+
+    case 10:
+    Print_PS1("sum0", B6_5, B11_5, B16_5, B21_5, B31);
+    return;
+
+    case 11:
+    Print_PS1("sum1", B6_5, B11_5, B16_5, B21_5, B31);
+    return;
+
+    case 12:
+    if (B16_5 == 0) {
+    printf("ps_muls0%c\t f%d, f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B11_5, B21_5);
+    return;
+    }
+
+    case 13:
+    if (B16_5 == 0) {
+    printf("ps_muls1%c\t f%d, f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B11_5, B21_5);
+    return;
+    }
+
+    case 14:
+    Print_PS1("madds0", B6_5, B11_5, B16_5, B21_5, B31);
+    return;
+
+    case 15:
+    Print_PS1("madds1", B6_5, B11_5, B16_5, B21_5, B31);
+    return;
+
+    case 20:
+    if (B21_5 == 0) {
+    printf("ps_sub%c\t f%d, f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B11_5, B16_5);
+    return;
+    }
+
+    case 21:
+    if (B21_5 == 0) {
+    printf("ps_add%c\t f%d, f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B11_5, B16_5);
+    return;
+
+    case 23:
+    Print_PS1("sel", B6_5, B11_5, B16_5, B21_5, B31);
+    return;
+
+    case 25:
+    if (B16_5 == 0) {
+    printf("ps_mul%c\t f%d, f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B11_5, B21_5);
+    return;
+    }
+
+    case 28:
+    Print_PS1("msub", B6_5, B11_5, B16_5, B21_5, B31);
+    return;
+
+    case 29:
+    Print_PS1("madd", B6_5, B11_5, B16_5, B21_5, B31);
+    return;
+
+    case 30:
+    Print_PS1("nmsub", B6_5, B11_5, B16_5, B21_5, B31);
+    return;
+
+    case 31:
+    Print_PS1("nmadd", B6_5, B11_5, B16_5, B21_5, B31);
+    return;
+    }
+}
+
+    switch(XO1) {
+
+    case 624:
+    printf("ps_merge11%c\t f%d, f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B11_5, B16_5);
+    return;
+
+    case 592:
+    printf("ps_merge10%c\t f%d, f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B11_5, B16_5);
+    return;
+
+    case 560:
+    printf("ps_merge01%c\t f%d, f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B11_5, B16_5);
+    return;
+
+    case 528:
+    printf("ps_merge00%c\t f%d, f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B11_5, B16_5);
+    return;
+
+    case 264:
+    if (B11_5 == 0) {
+    printf("ps_abs%c\t f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B16_5);
+    return;
+    }
+
+    case 136:
+    if (B11_5 == 0) {
+    printf("ps_nabs%c\t f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B16_5);
+    return;
+    }
+
+    case 72:
+    if (B11_5 == 0) {
+    printf("ps_mr%c\t f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B16_5);
+    return;
+    }
+
+    case 40:
+    if (B11_5 == 0) {
+    printf("ps_neg%c\t f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B16_5);
+    return;
+    }
+  }
 }
 
 if (OP == 7) {
@@ -406,11 +540,11 @@ if (OE == 1 && B31 == 1) { FLG = 3; }
     switch(XO2)
     {
     case 8:
-    Print7C_Math("subc", MathModes, FLG, B6_5, B11_5, B16_5);
+    Print7C_Math("subc", MathModes, FLG, B6_5, B16_5, B11_5);
     return;
 
     case 10:
-    Print7C_Math("addc", MathModes, FLG, B6_5, B11_5, B16_5);
+    Print7C_Math("addc", MathModes, FLG, B6_5, B16_5, B11_5);
     return;
 
     case 11:
@@ -429,6 +563,12 @@ if (OE == 1 && B31 == 1) { FLG = 3; }
         Print7C_Math("mulhw", MathModes, FLG, B6_5, B11_5, B16_5);
         return;
     }   break;
+
+    case 104:
+    if (B16_5 == 0) {
+    printf("neg%s\t r%d, r%d\n", MathModes[FLG], B6_5, B11_5);
+    return;
+    }
 
     case 136:
     Print7C_Math("subfe", MathModes, FLG, B6_5, B11_5, B16_5);
@@ -464,13 +604,13 @@ if (OE == 1 && B31 == 1) { FLG = 3; }
 
     case 954:
         if (B16_5 == 0) {
-        printf("extsb%c\t r%d, r%d\n", B31 == 1? '.' : '\0', B6_5, B11_5);
+        printf("extsb%c\t r%d, r%d\n", B31 == 1? '.' : '\0', B11_5, B6_5);
         return;
     }   break;
 
     case 922:
         if (B16_5 == 0) {
-        printf("extsh%c\t r%d, r%d\n", B31 == 1? '.' : '\0', B6_5, B11_5);
+        printf("extsh%c\t r%d, r%d\n", B31 == 1? '.' : '\0', B11_5, B6_5);
         return;
     }   break;
 
@@ -780,6 +920,18 @@ if (OP >= 32 && OP <= 55) {
 	return;
 }
 
+if (OP == 56) {
+
+    Print_PS0(B6_5, B11_5, W, B17_3, D, "q_l");
+    return;
+}
+
+if (OP == 57) {
+
+    Print_PS0(B6_5, B11_5, W, B17_3, D, "q_lu");
+    return;
+}
+
 // Floating-Point Arithmetic Instructions 1
 if (OP == 59) {
     switch(B26_5)
@@ -798,17 +950,69 @@ if (OP == 59) {
     case 21:
     Print_FCat1(FCat1[5], B6_5, B11_5, B16_5, B21_5, B31);
     return;
+
+    case 25:
+    if (B16_5 == 0) {
+    printf("fmuls%c\t f%d, f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B11_5, B21_5);
+    return;
     }
+  }
+}
+
+if (OP == 60) {
+    Print_PS0(B6_5, B11_5, W, B17_3, D, "q_st");
+    return;
+}
+
+if (OP == 61) {
+    Print_PS0(B6_5, B11_5, W, B17_3, D, "q_stu");
+    return;
 }
 
 if (OP == 63) {
 
+    if (B21_5 == 0 && B26_5 == 20) {
+    printf("fsub%c\t f%d, f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B11_5, B16_5);
+    return;
+    }
+
+    if (B16_5 == 0 && B26_5 == 25) {
+    printf("fmul%c\t f%d, f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B11_5, B21_5);
+    return;
+    }
+
+    if (B11_5 == 0 && B21_5 == 0 && B26_5 == 26) {
+    printf("frsqrte%c\t   f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B16_5);
+    return;
+    }
+
     if (XO1 == 0) {
     Print_FCMP('u', crfD, B11_5, B16_5, B9, B31);
     return;
+    }
 
-    } if (XO1 == 32) {
+    if (XO1 == 12 && B11_5 == 0) {
+    printf("frsp%c\t f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B16_5);
+    return;
+    }
+
+    if (XO1 == 15 && B11_5 == 0) {
+    printf("fctiwz%c\t f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B16_5);
+    return;
+    }
+
+    if (XO1 == 32) {
     Print_FCMP('o', crfD, B11_5, B16_5, B9, B31);
+    return;
+    }
+
+    if (XO1 == 40 && B11_5 == 0) {
+    printf("fneg%c\t f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B16_5);
+    return;
+    }
+
+    if (XO1 == 72 && B11_5 == 0) {
+    printf("fmr%c\t f%d, f%d\n", B31 == 1? '.' : '\0', B6_5, B16_5);
     return;
     }
 }
