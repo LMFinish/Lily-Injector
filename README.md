@@ -3,9 +3,9 @@ WIP GameCube Action Replay Code Injector / Gekko Disassembler
 
 Lily Injector is a command-line based tool designed for easy injection of AR codes into a DOL GameCube executable. It provides information on the target location of given codes as well as disassembly of instructions applied by them. To use it, open a command prompt in its directory, and make sure your DOL to be modified + the codes.txt file containing your AR codes, without newlines/spaces, are inside as well.
 
-To **inject** codes, run injection.bat or open the tool in a command prompt of your choice.
-To **preview** injection of codes, run preview_inject.bat or use the -s parameter in a command prompt & make sure codes.txt contains Action Replay code lines.
-To **disassemble** PowerPC Gekko bytecode, run disasm.bat or use the -d parameter in a command prompt & make sure codes.txt contains only PowerPC Gekko bytecode.
+- To **inject** codes, run injection.bat or open the tool in a command prompt of your choice.
+- To **preview** injection of codes, run preview_inject.bat or use the -s parameter in a command prompt & make sure codes.txt contains Action Replay code lines.
+- To **disassemble** PowerPC Gekko bytecode, run disasm.bat or use the -d parameter in a command prompt & make sure codes.txt contains only PowerPC Gekko bytecode.
 When in disassembly mode, specify the entry point.
 
 The disassembler supports roughly 160+ Gekko instructions/mnemonics (WIP). Not all instructions are recognized yet, but for the most part, a good portion of ASM is readable, including an array of Paired Singles (GC/Wii exclusive) instructions.
