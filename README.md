@@ -1,6 +1,8 @@
 # Lily Injector
 WIP GameCube Action Replay Code Injector / Gekko Disassembler
 
+![Lily Injector Preview](https://i.ibb.co/bz2Mh73/Lily-v1-1.png)
+
 Lily Injector is a command-line based tool designed for easy injection of AR codes into a DOL GameCube executable. It provides information on the target location of given codes as well as disassembly of instructions applied by them. To use it, open a command prompt in its directory, and make sure your DOL to be modified + the codes.txt file containing your AR codes, without newlines/spaces, are inside as well.
 
 - To **inject** codes, run injection.bat or open the tool in a command prompt of your choice.
